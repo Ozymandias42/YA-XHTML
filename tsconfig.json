@@ -1,0 +1,11 @@
+{
+    "compileOnSave": true,
+    "compilerOptions": {
+        "target":"esnext",
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "outDir": "js",
+        "removeComments": true
+    },
+    "include": ["ts-src/*"]
+}
