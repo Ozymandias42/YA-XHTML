@@ -9,47 +9,44 @@ function loadXMLDoc (url: RequestInfo, options: RequestInit = {}): Promise<strin
         }
     }).then(response => response.text());
 }
-
-/** Displays the result, which means appending the XML to the document as a fragment. */
-async function displayResult () {
+async function prepareNodeFromXML(xmlURL:RequestInfo, xslURL:RequestInfo): Promise<DocumentFragment>{
     const parser = new DOMParser();
+    const xsltProcessor = new XSLTProcessor();
 
-    //Problem with the following await-lines. each line blocks until finished 
-    //before the next one even starts (to block)
-    //better solution would get both xml and xsl asynchronously 
-    //and start parsing them asynchronously as soon as they are available 
-    //const xmlsrc = await loadXMLDoc('xml/cdcatalog.xml');
-    //const xml    = await parseIntoXMLObject(parser, xmlsrc);
-
-    //const xslsrc = await loadXMLDoc('xml/cdcatalog.xsl');
-    //const xsl    = await parseIntoXMLObject(parser, xslsrc);
+    async function parse(srcprom: Promise<string>): Promise<Document>{
+        return srcprom.then(src => parser.parseFromString(src, 'text/xml'));
+    }
+    async function transform(xmlobjsprom: Promise<Document>[]): Promise<DocumentFragment>{
+        const [xmlProm, xslProm] = xmlobjsprom;  
+        await xslProm.then(xsl => xsltProcessor.importStylesheet(xsl));
+        return xmlProm.then(xml => xsltProcessor.transformToFragment(xml, document));
+    }
 
     //parallelised implementation
-    const srcpromises = [loadXMLDoc('xml/cdcatalog.xml'), loadXMLDoc('xml/cdcatalog.xsl')];
-    const srcs = await Promise.all(srcpromises);
-    const xmlobjproms = srcs.map(x => parseIntoXMLObject(parser, x));
-    const xmlobjs = await Promise.all(xmlobjproms);
+    const xmlobjsprom = [loadXMLDoc(xmlURL), loadXMLDoc(xslURL)].map(parse);
+    const fragment = transform(xmlobjsprom);
+    //const srcs        = await Promise.all(srcpromises);
+    //const xmlobjproms = srcs.map(x => parseIntoXMLObject(parser, x));
+    //const xmlobjs     = await Promise.all(xmlobjproms);
+    //const fragment    = await applyXSLTtransform(xsltProcessor,xmlobjs);
+    return fragment;
+}
+/** Displays the result, which means appending the XML to the document as a fragment. */
+function displayResult() {
 
-    const parsepromises = srcs
-
-    //const xml : XMLDocument = await loadXMLDoc('xml/cdcatalog.xml');
-    //const xsl : XMLDocument = await loadXMLDoc('xml/cdcatalog.xsl');
-    const { implementation } = document;
-
-    if (implementation && implementation.createDocument) {
-        const xsltProcessor = new XSLTProcessor();
-        xsltProcessor.importStylesheet(xmlobjs[1]);
-        
-        const fragment = xsltProcessor.transformToFragment(xmlobjs[0], document);
-        const element = document.getElementById('example');
-        if(element != null ) element.appendChild(fragment);
-    }
+    const fragment = prepareNodeFromXML('xml/cdcatalog.xml', 'xml/cdcatalog.xsl');    
+    const element = document.getElementById('example');
+    if(element != null ) fragment.then(x => element.appendChild(x));
 }
 
-function parseIntoXMLObject(parser: DOMParser, src: string): Promise<Document> {
-    const parse = () => parser.parseFromString(src, 'text/xml');
-    const promise: Promise<Document> = new Promise(resolve => resolve(parse()));
-  return promise;
+async function parseIntoXMLObject(parser: DOMParser, src: string): Promise<Document> {
+    return parser.parseFromString(src, 'text/xml');
+  }
+
+async function applyXSLTtransform(xsltProcessor:XSLTProcessor,xmlobjs: Document[]): Promise<DocumentFragment>{
+    xsltProcessor.importStylesheet(xmlobjs[1]);
+    const fragment = xsltProcessor.transformToFragment(xmlobjs[0], document);
+    return fragment;
 }
 
 
