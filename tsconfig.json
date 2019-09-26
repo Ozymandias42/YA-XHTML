@@ -1,11 +1,12 @@
 {
     "compileOnSave": true,
     "compilerOptions": {
-        "target":"esnext",
+        "target":"es2016",
         "noImplicitAny": true,
         "strictNullChecks": true,
-        "outDir": "js",
-        "removeComments": true
+        "outDir": "./js/",
+				"removeComments": true,
+				"lib": ["dom", "dom.iterable", "es2015"]
     },
     "include": ["ts-src/*"]
 }
