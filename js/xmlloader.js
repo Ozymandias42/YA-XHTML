@@ -1,32 +1,34 @@
 'use strict';
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 function loadXMLDoc(url, options = {}) {
-    return fetch(url, {
-        ...options,
-        headers: {
+    return fetch(url, Object.assign({}, options, { headers: {
             'Content-Type': 'application/xhtml+xml'
-        }
-    }).then(response => response.text());
+        } })).then(response => response.text());
 }
-async function displayResult() {
-    const parser = new DOMParser();
-    const srcpromises = [loadXMLDoc('xml/cdcatalog.xml'), loadXMLDoc('xml/cdcatalog.xsl')];
-    const srcs = await Promise.all(srcpromises);
-    const xmlobjproms = srcs.map(x => parseIntoXMLObject(parser, x));
-    const xmlobjs = await Promise.all(xmlobjproms);
-    const parsepromises = srcs;
-    const { implementation } = document;
-    if (implementation && implementation.createDocument) {
+function parseIntoXML(parser, src) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return parser.parseFromString(src, 'application/xml');
+    });
+}
+const urls = ['/xml/cdcatalog.xml', '/xml/cdcatalog.xsl'];
+const [xmlPromise, xslPromise] = urls.map(x => loadXMLDoc(x));
+function displayResult() {
+    return __awaiter(this, void 0, void 0, function* () {
         const xsltProcessor = new XSLTProcessor();
-        xsltProcessor.importStylesheet(xmlobjs[1]);
-        const fragment = xsltProcessor.transformToFragment(xmlobjs[0], document);
-        const element = document.getElementById('example');
-        if (element != null)
-            element.appendChild(fragment);
-    }
+        const domParser = new DOMParser();
+        const xsl = yield xslPromise.then(xsl => parseIntoXML(domParser, xsl));
+        xsltProcessor.importStylesheet(xsl);
+        const fragment = yield xmlPromise
+            .then(xml => parseIntoXML(domParser, xml))
+            .then(doc => xsltProcessor.transformToFragment(doc, document));
+        document.body.appendChild(fragment);
+    });
 }
-function parseIntoXMLObject(parser, src) {
-    const parse = () => parser.parseFromString(src, 'text/xml');
-    const promise = new Promise(resolve => resolve(parse()));
-    return promise;
-}
-document.addEventListener("load", displayResult());
+document.addEventListener('DOMContentLoaded', displayResult);
